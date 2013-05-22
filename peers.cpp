@@ -19,14 +19,11 @@ int Peers::initialize(std::string peersFile) { //Get the IP and Port numbers of 
 	peersList.open(peersFile.c_str(), std::ifstream::in);  //Open the stream
 	while(peersList >> IP) {  //Create new peer					//Get value of IP
 		peersList >> port;					//Get value of port
-		_peers[_numPeers] = new Peer;		//Allocate a new memory
-		_peers[_numPeers]->setIP(IP);		//set IP
-		_peers[_numPeers]->setPort(port);	//set port
+		_peers[_numPeers].setIP(IP);		//set IP
+		_peers[_numPeers].setPort(port);	//set port
 		_numPeers++;						//Set number of peers
 //		std::cout << _numPeers <<"." << IP << port  << std::endl;
 	}
-	Peer* myP[maxPeers];
-	*myP = *_peers;
 	peersList.close();						//Close file
 //	for(int iii = 0; iii < _numPeers - 1; iii++)
 //		std::cout << _peers[iii]->getIP() << std::endl;
@@ -38,7 +35,7 @@ int Peers::getNumPeers() {
 	return _numPeers;
 }
 
-Peer** Peers::getPeers() {
-	return _peers;
+Peer Peers::getPeer(int num) {
+	return _peers[num];
 }
 	

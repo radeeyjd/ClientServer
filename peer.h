@@ -10,7 +10,7 @@
 #define PEER_H
 
 #include <string>
-
+#include <netinet/in.h>
 using namespace std;
 
 const int chunkSize = 65536;
@@ -20,6 +20,31 @@ const int maxFiles  = 100;    // Cheesy, but allows us to do a simple Status cla
 class Peer;
 class Status;
 class Peers;
+
+// Peer and Status are the classes we really care about
+// Peers is a container; feel free to do a different container
+
+class Peer {
+    // This is the formal interface and you should follow it
+public:
+    int insert(string filename);
+    int query(Status& status);
+    int join();     // Note that we should have the peer list, so it is not needed as a parameter
+    int leave();
+	void setIP(string s_IP);
+	void setPort(int s_port);
+	long int getIP();
+	in_port_t getPort();
+	Peer();
+	~Peer();
+    // Feel free to hack around with the private data, since this is part of your design
+    // This is intended to provide some exemplars to help; ignore it if you don't like it.
+private:
+    enum State { connected, disconnected, unknown } _state;
+    Peers* _peers;
+	std::string IP;
+	int port; //Convert to long int
+};
 
 // Peers is a dumb container to hold the peers; the number of peers is fixed,
 // but needs to be set up when a peer starts up; feel free to use some other
@@ -39,38 +64,14 @@ public:
     
     // You will likely want to add methods such as visit()
 	int getNumPeers();
-	Peer** getPeers();
+	Peer getPeer(int id);
     
 private:
     int _numPeers;
-    Peer * _peers[maxPeers]; 		 //Is now list of pointers to Peer
+    Peer _peers[maxPeers]; 		 //Is now list of pointers to Peer
 };
 
 
-
-// Peer and Status are the classes we really care about
-// Peers is a container; feel free to do a different container
-
-class Peer {
-    // This is the formal interface and you should follow it
-public:
-    int insert(string filename);
-    int query(Status& status);
-    int join();     // Note that we should have the peer list, so it is not needed as a parameter
-    int leave();
-	void setIP(string s_IP);
-	void setPort(int s_port);
-	long int getIP();
-	long int getPort();
-	~Peer();
-    // Feel free to hack around with the private data, since this is part of your design
-    // This is intended to provide some exemplars to help; ignore it if you don't like it.
-private:
-    enum State { connected, disconnected, unknown } _state;
-    Peers _peers;
-	std::string IP;
-	int port; //Convert to long int
-};
 
 // Status is the class that you populate with status data on the state
 // of replication in this peer and its knowledge of the replication

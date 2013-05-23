@@ -10,24 +10,28 @@
 
 Peer::Peer() {
 //	_peers = new Peers;
-}
+} 
 
 #define addrSize sizeof(struct sockaddr_in)
 
 void Peer::setIP(std::string s_IP) { //Set the IP of Peer	
-	IP = s_IP;	
+	IP = inet_addr(s_IP.c_str());
+//std::cout << "New IP" << IP;
 }
 
 void Peer::setPort(int s_port) { 	 //Set the port number of peer
-	port = s_port;
+	port = htons(s_port);
+//std::cout << "New Port " << port << std::endl;
 }	
 
-long int Peer::getIP() {  			 //Set the IP of peer
-	return inet_addr(IP.c_str());
+in_addr_t Peer::getIP() {  			 //Set the IP of peer
+//std::cout <<"Returned IP " << IP << std::endl; 
+	return IP;
 }
 
 in_port_t Peer::getPort() {			//Get the port of a peer
-	return htons(port);
+//std::cout <<"Returned Port " <<  port << std::endl;
+	return port;
 }
 	
 int Peer::join() {
@@ -43,7 +47,7 @@ int Peer::join() {
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = inet_addr("127.0.0.1");
 	server.sin_port = htons(10089);
-std::cout << server.sin_addr.s_addr << " " << server.sin_port << std::endl;
+//std::cout << "Server "<< server.sin_addr.s_addr << " " << htons(10090) << std::endl;
 
 
 	//create a socket
@@ -61,7 +65,7 @@ std::cout << server.sin_addr.s_addr << " " << server.sin_port << std::endl;
 	if(sent == -1) {
 		std::cout << "Send Error" << std::endl;
 	}
-	std::cout << "Connected to Server!" << std::endl;
+//	std::cout << "Connected to Server!" << std::endl;
 	FILE *pFile;
 	char buf[255];
 	int fileRecv, filesize;
@@ -114,6 +118,8 @@ std::cout << server.sin_addr.s_addr << " " << server.sin_port << std::endl;
 	//cout << _peers.getNumPeers() << endl;
 	Peer myPeers[maxPeers];
 	numofPeers = _peers->getNumPeers();
+	for(int jjj = 0; jjj<numofPeers; jjj++)
+	myPeers[jjj] = _peers->getPeer(jjj);
 //	std::cout << numofPeers << std::endl;
 //		std::cout << std::endl;
 //	for(int iii = 0; iii < numofPeers && iii <11; iii++) {
@@ -129,32 +135,38 @@ std::cout << server.sin_addr.s_addr << " " << server.sin_port << std::endl;
 //		std::cout << files[iii];
 
 	//Connect to peers and start receiving files
-	
-	for(int iii = 0; iii < 1; iii++) {
-		if(fork() > 0) {
-			int peerSock;
-			struct hostent *peer_addr;
-			struct sockaddr_in mypeer;
-			mypeer.sin_family = AF_INET;
-			mypeer.sin_addr.s_addr = myPeers[iii].getIP();
-			mypeer.sin_port = myPeers[iii].getPort();
-std::cout <<" Hello" << " "<< mypeer.sin_addr.s_addr << " " << mypeer.sin_port <<std::endl;
-	
-			if( (peerSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
-				std::cout << "Peer Socket call failed" << std::endl;
-				return -1;	
-			}	
-			std::cout << "Connecting to the Peer....." << std::endl;
-			if( (connect(peerSock, (struct sockaddr *)&mypeer, addrSize)) == -1) {
-				std::cout << "Connection to Peer failed" << std::endl;
-				return -1;
-			}
-			char req = '0';
-			sent = send(peerSock, &req, sizeof(char), 0);
-			if(sent == -1) {
-				std::cout << "Send Error" << std::endl;
-			}
-		}		
+	if(numofFiles == 0) {
+		//No Files to process listen to port for incoming connection
+	}
+	else {	
+		for(int iii = 0; iii < numofPeers; iii++) {
+			if(fork() > 0) {
+				int peerSock, recvd;
+				struct hostent *peer_addr;
+				struct sockaddr_in mypeer;
+				mypeer.sin_family = AF_INET;
+				mypeer.sin_addr.s_addr = myPeers[iii].getIP();
+				mypeer.sin_port = myPeers[iii].getPort();
+//std::cout <<"Connecting to " << std::endl << myPeers[iii].getIP() << " "<< myPeers[iii].getPort() << std::endl;
+				if( (peerSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
+					std::cout << "Peer Socket call failed" << std::endl;
+					return -1;	
+				}	
+				std::cout << "Connecting to the Peer....." << std::endl;
+				if( (connect(peerSock, (struct sockaddr *)&mypeer, addrSize)) == -1) {
+					std::cout << "Connection to Peer failed" << std::endl;
+					return -1;
+				}
+				char req = 'F';
+				sent = send(peerSock, files, sizeof(char), 0);//HAVE TO DO
+				
+//sent = send(peerSock, &req, sizeof(char), 0);
+				if(sent == -1) {
+					std::cout << "Send Error" << std::endl;
+				}
+//std::cout << "Received " << req << std::endl;
+			}		
+		}
 	}
 
 	// Start Listening to a port for connections

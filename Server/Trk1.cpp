@@ -16,7 +16,7 @@ int main() {
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(10089);
+	server.sin_port = htons(10090);
 
 	//create a socket
 	if((serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1) {

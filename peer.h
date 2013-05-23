@@ -33,7 +33,7 @@ public:
     int leave();
 	void setIP(string s_IP);
 	void setPort(int s_port);
-	long int getIP();
+	in_addr_t getIP();
 	in_port_t getPort();
 	Peer();
 	~Peer();
@@ -42,8 +42,8 @@ public:
 private:
     enum State { connected, disconnected, unknown } _state;
     Peers* _peers;
-	std::string IP;
-	int port; //Convert to long int
+	in_addr_t IP;
+	in_port_t port; //Convert to long int
 };
 
 // Peers is a dumb container to hold the peers; the number of peers is fixed,

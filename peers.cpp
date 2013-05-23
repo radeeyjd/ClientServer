@@ -17,12 +17,12 @@ int Peers::initialize(std::string peersFile) { //Get the IP and Port numbers of 
 	int port;				  		   //Temp variables to port
 	_numPeers = 0;
 	peersList.open(peersFile.c_str(), std::ifstream::in);  //Open the stream
-	while(peersList >> IP) {  //Create new peer					//Get value of IP
-		peersList >> port;					//Get value of port
+	while(peersList >> IP && peersList >> port) {  //Create new peer					//Get value of IP
 		_peers[_numPeers].setIP(IP);		//set IP
 		_peers[_numPeers].setPort(port);	//set port
 		_numPeers++;						//Set number of peers
-//		std::cout << _numPeers <<"." << IP << port  << std::endl;
+//		std::cout << std::endl  <<  _peers[_numPeers].getIP() << " " <<  _peers[_numPeers].getPort() << std::endl;
+		std::cout <<"Orig Address" << _numPeers <<std::endl;
 	}
 	peersList.close();						//Close file
 //	for(int iii = 0; iii < _numPeers - 1; iii++)

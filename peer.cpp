@@ -7,7 +7,10 @@
 #include <fstream>
 #include <unistd.h>
 #include <vector>
+#include <cstring>
 
+int myFilecount;
+vector<int> myFiles;
 Peer::Peer() {
 //	_peers = new Peers;
 } 
@@ -103,6 +106,7 @@ int Peer::join() {
 		iFiles >> stat;
 		repStatus.push_back(stat);
 		files.push_back(bufFile);
+		myFiles.push_back(0);
 	}
 	else {
 		std::cout << "No files in System" << std::endl;	
@@ -131,6 +135,7 @@ int Peer::join() {
 		
 	//Get the number of peers and connect with them to start receiving file
 	numofFiles = files.size();
+	
 //	for(int iii = 0; iii < files.size(); iii++)
 //		std::cout << files[iii];
 
@@ -139,8 +144,9 @@ int Peer::join() {
 		//No Files to process listen to port for incoming connection
 	}
 	else {	
-		for(int iii = 0; iii < numofPeers; iii++) {
+		for(int iii = 0; iii < numofFiles; iii++) { //Change to num of file
 			if(fork() > 0) {
+				char buf[65536];
 				int peerSock, recvd;
 				struct hostent *peer_addr;
 				struct sockaddr_in mypeer;
@@ -158,8 +164,22 @@ int Peer::join() {
 					return -1;
 				}
 				char req = 'F';
-				sent = send(peerSock, files, sizeof(char), 0);//HAVE TO DO
-				
+				std::string fname;
+				fname = files[iii];
+				sent = send(peerSock, &req, sizeof(char), 0);  			//Send Size of Filename
+//				recvd = recv(peerSock, &req, sizeof(char), 0);			//Sen
+				int fnameSize = files[iii].size();
+				sent = send(peerSock, &fnameSize, sizeof(size_t), 0); //Send file size
+				sent = send(peerSock, fname.c_str(), fnameSize, 0);	//Send file name
+				int fileSize;
+				recvd = recv(peerSock, &fileSize, sizeof(int), 0);
+				recvd = recv(peerSock, buf, fileSize, 0);
+				FILE *pFile;
+				char fname1[100];
+				memcpy(fname1, fname.c_str(), fname.size());	
+				pFile = fopen(fname.c_str(), "wb");
+				fwrite(buf, 1, fileSize, pFile);
+				fclose(pFile);
 //sent = send(peerSock, &req, sizeof(char), 0);
 				if(sent == -1) {
 					std::cout << "Send Error" << std::endl;

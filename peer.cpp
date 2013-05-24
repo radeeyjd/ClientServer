@@ -144,17 +144,20 @@ int Peer::join() {
 	if(numofFiles == 0) {	//No Files to process listen to port for incoming connection
 	//To do
 	}
-	else {	
+	else {		
 		for(int iii = 0; iii < numofFiles; iii++) { 
-			if(fork() > 0) {	//Create threads
+		//Create threads
 				char buf[chunkSize];
-				int peerSock, recvd, n_Chunks;
+				int peerSock, recvd, n_Chunks, peer_ID;
+				peer_ID = 0;
 				struct hostent *peer_addr;
 				struct sockaddr_in mypeer;
 				mypeer.sin_family = AF_INET;
-				mypeer.sin_addr.s_addr = myPeers[iii].getIP();		//Connect to iiith peer
-				mypeer.sin_port = myPeers[iii].getPort();			//iith port
-
+				mypeer.sin_addr.s_addr = myPeers[peer_ID].getIP();		//Connect to iiith peer
+				mypeer.sin_port = myPeers[peer_ID].getPort();			//iith port
+				peer_ID++;
+				if(peer_ID >= numofPeers)	//Check if you have connected with all the peers
+					peer_ID--;
 				if( (peerSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
 					std::cout << "Peer Socket call failed" << std::endl;
 					return -1;	
@@ -176,7 +179,7 @@ int Peer::join() {
 				recvd = recv(peerSock, &fileSize, sizeof(int), 0);
 			
 				FILE *pFile;	
-				pFile = fopen(fname.c_str(), "wb");
+				pFile = fopen(fname.c_str(), "a");
 
 				if(fileSize <= chunkSize) {	//For small file get in a single attempt
 				recvd = recv(peerSock, buf, fileSize, 0);
@@ -194,15 +197,14 @@ int Peer::join() {
 					}
 				}	
 				fclose(pFile);
+				close(peerSock);
 			}		
 		}
-	}
 
 	// Start Listening to a port for connections
 	// Connect to all client and start receiving files from them
-	
 
-close(serverSock);
+	close(serverSock);
 }
 
 Peer::~Peer() {

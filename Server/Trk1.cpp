@@ -9,6 +9,8 @@
 #include <sys/types.h> 
 
 #define SIZE sizeof(struct sockaddr_in)
+const int chunkSize = 65536;
+
 
 int main() {
 	int serverSock, sent, newsockfd;
@@ -59,36 +61,40 @@ int main() {
 					FILE *pFile;
 			//std::cout << "Hello";
 					char buf[65536], fname1[100];
-					int fileSize;				//Get the file size
+					int fileSize, n_chunks;				//Get the file size
 			std::cout << fname << std::endl;
 					pFile = fopen(fname, "rb");
 					fseek(pFile, 0, SEEK_END);
 					fileSize = ftell(pFile);
 					rewind(pFile);
+					sent = send(newsockfd, &fileSize, sizeof(int), 0);
+								
+					if(fileSize <= chunkSize) {
 					fread(buf,1, fileSize,pFile);
 					fclose(pFile);
-					sent = send(newsockfd, &fileSize, sizeof(int), 0);
-					sent = send(newsockfd, buf, fileSize, 0);
-					if(sent == -1) {
-						std::cout << "Send Error " << std::endl;
-						return -1;
+					sent = send(newsockfd, buf, fileSize, 0);	
+					}
+					else {
+						n_chunks = fileSize / chunkSize;		
+						for(int c_Chunk = 0; c_Chunk < n_chunks; c_Chunk++) {
+							fread(buf, 1, chunkSize, pFile);
+							sent = send(newsockfd, buf, chunkSize, 0);	
+							if(sent == -1) {
+							std::cout << "Send Error " << std::endl;
+							return -1;
+						}
+					}
+						if((fileSize % chunkSize) != 0) {
+						fread(buf, 1, (fileSize %chunkSize), pFile);
+						sent = send(newsockfd, buf, (fileSize % chunkSize), 0);
 					}
 					
-					pFile = fopen("fileList", "rb");
-					fseek(pFile, 0, SEEK_END);
-					fileSize = ftell(pFile);
-					rewind(pFile);
-					fread(buf,1, fileSize,pFile);
-					fclose(pFile);
-				//	sent = send(newsockfd, &fileSize, sizeof(int), 0);
-				//	sent = send(newsockfd, buf, fileSize, 0);
-					if(sent == -1) {
-						std::cout << "Send Error " << std::endl;
-						return -1;
-					}
+
+			
+		}
 					close(newsockfd);
 					break;	
-			}
+	}
 			
 		}	
 	}

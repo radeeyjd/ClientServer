@@ -79,6 +79,18 @@ int main() {
 						std::cout << "Send Error " << std::endl;
 						return -1;
 					}
+					//Get the Peer IP and append in the file
+					char client_IP[20];
+					struct sockaddr_in client;
+					socklen_t len = sizeof(client);		
+					if(getpeername(newsockfd, (struct sockaddr*)&client, &len) == -1) {
+						std::cout << "Cannot get IP of Client" << std::endl;
+					}
+					inet_ntop(AF_INET, &client.sin_addr, client_IP, sizeof(client_IP));
+					std::ofstream ofs;	//Open output stream
+					ofs.open("peersList", std::ofstream::out|std::ofstream::app);
+					ofs << client_IP << " 10091" << std::endl; //Make a new entry
+					ofs.close();
 					close(newsockfd);
 					break;	
 			}

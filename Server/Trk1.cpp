@@ -88,17 +88,15 @@ int main() {
 						fread(buf, 1, (fileSize %chunkSize), pFile);
 						sent = send(newsockfd, buf, (fileSize % chunkSize), 0);
 					}
-					
-
+	std::cout << "Files Sent " << std::endl;
+			
+					}
+					close(newsockfd);	
+					break;
+				}	
+			}
 			
 		}
-					close(newsockfd);
-					break;	
-	}
-			
-		}	
-	}
-	
-		
-	}
+	 		}
 }
+	

@@ -10,6 +10,7 @@
 #define PEER_H
 
 #include <string>
+#include <vector>
 #include <netinet/in.h>
 using namespace std;
 
@@ -44,6 +45,7 @@ private:
     Peers* _peers;
 	in_addr_t IP;
 	in_port_t port; //Convert to long int
+	vector<std::string> files;
 };
 
 // Peers is a dumb container to hold the peers; the number of peers is fixed,

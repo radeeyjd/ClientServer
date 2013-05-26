@@ -43,14 +43,12 @@ int main() {
 			return -1;
 		}	
 			if(fork() == 0) {
-			std::cout << "New Connection..... " << std::endl;
 			char req;
 			int rec, sent;
 			rec = recv(newsockfd, &req, 1, 0);
 			//Switch on the request type
 			switch(req) {
 				case '0': {
-					std::cout << "New peer Joined the system.....!" << std::endl;
 					FILE *pFile;
 					char buf[255];
 					int fileSize;				//Get the file size
@@ -66,19 +64,25 @@ int main() {
 						std::cout << "Send Error " << std::endl;
 						return -1;
 					}
-					
+
 					pFile = fopen("fileList", "rb");
 					fseek(pFile, 0, SEEK_END);
 					fileSize = ftell(pFile);
 					rewind(pFile);
 					fread(buf,1, fileSize,pFile);
 					fclose(pFile);
+std::cout << fileSize << std::endl;
 					sent = send(newsockfd, &fileSize, sizeof(int), 0);
+					if(sent == -1) {
+						std::cout << "Send Error " << std::endl;
+					}
+					if(fileSize != 0)
 					sent = send(newsockfd, buf, fileSize, 0);
 					if(sent == -1) {
 						std::cout << "Send Error " << std::endl;
 						return -1;
 					}
+
 					//Get the Peer IP and append in the file
 					char client_IP[20];
 					struct sockaddr_in client;
@@ -86,17 +90,20 @@ int main() {
 					if(getpeername(newsockfd, (struct sockaddr*)&client, &len) == -1) {
 						std::cout << "Cannot get IP of Client" << std::endl;
 					}
-					inet_ntop(AF_INET, &client.sin_addr, client_IP, sizeof(client_IP));
+					inet_ntop(AF_INET, &client.sin_addr, client_IP, sizeof(client_IP));	
+					std::cout << "New peer " << client_IP <<" Joined the system.....!" << std::endl;
 					std::ofstream ofs;	//Open output stream
 					ofs.open("peersList", std::ofstream::out|std::ofstream::app);
 					ofs << client_IP << " 10091" << std::endl; //Make a new entry
 					ofs.close();
-					close(newsockfd);
 					break;	
 			}
 			
 		}	
+			close(newsockfd);
+
 	}
+
 	
 		
 	}

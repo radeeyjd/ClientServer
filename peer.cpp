@@ -437,11 +437,11 @@ std::cout << "New Files Sent " << std::endl;
 	
 //Send the newly inserted file name
 	size_t fnSize = filename.size();
-	char newfn[20];
-	memcpy(newfn, filename.c_str(), filename.size());
+//	char newfn[20];
+//	memcpy(newfn, filename.c_str(), filename.length());
 	sent = send(serverSock, &fnSize , sizeof(size_t), 0); //Send file size
-	sent = send(serverSock, newfn, fnSize, 0);	//Send file name
-std::cout << fnSize << " " << newfn << std::endl;
+	sent = send(serverSock, filename.c_str(), fnSize, 0);	//Send file name
+std::cout << fnSize << " " << filename.c_str() << std::endl;
 	close(serverSock);
 //	return 0;
 }

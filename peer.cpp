@@ -441,7 +441,7 @@ std::cout << "New Files Sent " << std::endl;
 //	memcpy(newfn, filename.c_str(), filename.length());
 	sent = send(serverSock, &fnSize , sizeof(size_t), 0); //Send file size
 	sent = send(serverSock, filename.c_str(), fnSize, 0);	//Send file name
-std::cout << fnSize << " " << filename.c_str() << std::endl;
+//std::cout << fnSize << " " << filename.c_str() << std::endl;
 	close(serverSock);
 //	return 0;
 }

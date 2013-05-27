@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstring>
 #include <pthread.h>
+#include <sstream>
 
 int myFilecount;
 vector<int> myFiles;
@@ -208,7 +209,7 @@ std::cout << "No File to copy" << std::endl;
 	// Start Listening to a port for connections
 	// Connect to all client and start receiving files from them
 	close(serverSock);
-	pthread_create(&pid, NULL, startListen, NULL);
+//	pthread_create(&pid, NULL, startListen, NULL);
 
 }
 
@@ -337,7 +338,7 @@ std::cout << "New file T/F request" << std::endl;
 
 int Peer::insert(std::string filename) {
 //Connect to peers and send the new file
-	
+std::cout << "Insert hit " << std::endl;
 	int numofPeers;
 	Peer myPeers[maxPeers];
 	numofPeers = _peers->getNumPeers();
@@ -405,15 +406,140 @@ std::cout << "New Files Sent " << std::endl;
 		}
 		fclose(pFile);
 	}
-//Contact the server update the file List
+
  }
+//Contact the server update the file List
+//Connect to Server
+	int serverSock, sent;
+	struct hostent *serv_addr;
+	struct sockaddr_in server;
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = inet_addr("127.0.0.1");	//IP address of tracker	
+	server.sin_port = htons(10089);						//Trackers Port
+	_peers = new Peers;
+//Contact the Tracker to Update the file list
+	if( (serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
+		std::cout << "Socket call failed" << std::endl;
+		return -1;	
+	}	
+	std::cout << "Connecting to the server....." << std::endl;
+
+	if( (connect(serverSock, (struct sockaddr *)&server, addrSize)) == -1) {
+		std::cout << "Connection failed" << std::endl;
+		return -1;
+	}
+//'0' -- Joining the system
+	char req = '1';
+	sent = send(serverSock, &req, sizeof(char), 0);
+	if(sent == -1) {
+		std::cout << "Send Error" << std::endl;
+	}
+	
+//Send the newly inserted file name
+	size_t fnSize = filename.size();
+	char newfn[20];
+	memcpy(newfn, filename.c_str(), filename.size());
+	sent = send(serverSock, &fnSize , sizeof(size_t), 0); //Send file size
+	sent = send(serverSock, newfn, fnSize, 0);	//Send file name
+std::cout << fnSize << " " << newfn << std::endl;
+	close(serverSock);
 //	return 0;
 }
 
 Peer::~Peer() {
-		pthread_join(pid, NULL);	
+//		pthread_join(pid, NULL);	
 }
 
+void chunkFile(char *fname, long fileSize) {
+//get the base file name and the size of the file to chunk
+	std::ifstream ifs;			//Input file
+	ifs.open(fname, std::ios::in | std::ios::binary);
+	if(ifs.is_open()) {
+		std::ofstream ofs;
+		int n_Chunks;
+		std::string chunkName;
+		char *buf = new char[chunkSize];
+		n_Chunks = fileSize / chunkSize;
+		for(int c_Chunks = 0; c_Chunks < n_Chunks; c_Chunks++) {	//Iterate till the entire file is being chunked minus the excess
+			chunkName.clear();
+			chunkName.append(fname);
+			chunkName.append(".");	
+			std::ostringstream intbuf;
+			intbuf.clear();
+			intbuf << c_Chunks;
+			chunkName.append(intbuf.str());
+			ofs.open(chunkName.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+			if(ofs.is_open()) {
+				ifs.read(buf, chunkSize);
+				ofs.write(buf, ifs.gcount());
+				ofs.close();
+			}
+		}
+		if(fileSize % chunkSize > 0) {	//If some data is left after chunking the file
+			n_Chunks++;
+			chunkName.clear();
+			chunkName.append(fname);
+			chunkName.append(".");	
+			std::ostringstream intbuf;
+			intbuf.clear();
+			intbuf << n_Chunks;
+			chunkName.append(intbuf.str());
+			ofs.open(chunkName.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+			if(ofs.is_open()) {
+				ifs.read(buf, (fileSize % chunkSize));
+				ofs.write(buf, ifs.gcount());
+				ofs.close();
+			}
+		}
+	ifs.close();	
+	}
+}
 
+void mergeFile(char *fname, long fileSize) {
+//Get the base file name
+//Merge the small files and produce the final file
+	std::ofstream ofs;
+	ofs.open(fname, std::ios::out | std::ios::binary);
+	if(ofs.is_open()) {
+		int n_Chunks;
+		n_Chunks = fileSize /chunkSize;
+		std::string chunkName;
+		std::ifstream ifs;
+		char *buf = new char[chunkSize];
+		for(int c_Chunks = 0; c_Chunks < n_Chunks; c_Chunks++) {
+			chunkName.clear();
+			chunkName.clear();
+			chunkName.append(fname);
+			chunkName.append(".");	
+			std::ostringstream intbuf;
+			intbuf.clear();
+			intbuf << c_Chunks;
+			chunkName.append(intbuf.str());
 
+			ifs.open(chunkName.c_str(), std::ios::in | std::ios::binary);
+			ifs.read(buf, chunkSize);
+			ofs.write(buf, ifs.gcount());
+			ifs.close();
+		}
+		if(fileSize % chunkSize > 0) {
+//if there is some excessive data in the file
+			n_Chunks++;
+			chunkName.clear();
+			chunkName.clear();
+			chunkName.append(fname);
+			chunkName.append(".");	
+			std::ostringstream intbuf;
+			intbuf.clear();
+			intbuf << n_Chunks;
+			chunkName.append(intbuf.str());
+
+			ifs.open(chunkName.c_str(), std::ios::in | std::ios::binary);
+			ifs.read(buf, (fileSize % chunkSize));	//read the data
+			ofs.write(buf, ifs.gcount());			//write in the final file
+			ifs.close();
+		}
+	}
+	ofs.close();
+}
+	
 

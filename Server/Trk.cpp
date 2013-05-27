@@ -98,6 +98,15 @@ std::cout << fileSize << std::endl;
 					ofs.close();
 					break;	
 			}
+			case '1': {
+				size_t fnSize;
+				int rec;
+				char newfile[20];
+				rec = recv(newsockfd, &fnSize, sizeof(size_t), 0);
+				rec = recv(newsockfd, newfile, fnSize, 0);
+		std::cout << fnSize << " " << newfile << std::endl;
+				break;
+			}
 			
 		}	
 			close(newsockfd);

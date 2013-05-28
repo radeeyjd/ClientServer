@@ -10,9 +10,12 @@
 #include <cstring>
 #include <pthread.h>
 #include <sstream>
+#include <netdb.h>
+#include <bitset>
 
 int myFilecount;
 vector<int> myFiles;
+vector< bitset<10> > myFileChunks;
 pthread_t pid;
 
 Peer::Peer() {
@@ -43,6 +46,24 @@ in_port_t Peer::getPort() {			//Get the port of a peer
 //std::cout <<"Returned Port " <<  port << std::endl;
 	return port;
 }
+
+int hosttoIP(char* hostname, char* IP) {
+//Function to resolve the hostname -> IP
+	struct hostent *addr;
+	struct in_addr **addr_list;
+
+	if((addr = gethostbyname( hostname )) == NULL) {
+		std::cout << "Error resolving hostname" << std::endl;
+	}
+		
+	addr_list = (struct in_addr **)addr->h_addr_list;
+	
+	for(int iii =0; addr_list[iii] != NULL; iii++) {
+		strcpy(IP, inet_ntoa(*addr_list[iii]));
+		std::cout << IP << std::endl;
+	}
+	return 0;
+}
 	
 int Peer::join() {
 	// 1. Connect to server get Peers List
@@ -54,7 +75,9 @@ int Peer::join() {
 	struct hostent *serv_addr;
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = inet_addr("127.0.0.1");	//IP address of tracker	
+	char IP[20];
+	hosttoIP("localhost", IP);
+	server.sin_addr.s_addr = inet_addr(IP);	//IP address of tracker	
 	server.sin_port = htons(10089);						//Trackers Port
 	_peers = new Peers;
 //Contact the Tracker to get files and peers List
@@ -152,6 +175,7 @@ std::cout << "No File to copy" << std::endl;
 	else {		
 		for(int iii = 0; iii < numofFiles; iii++) { 
 		//Create threads
+		//Split the file into multiple chunks and receive the chunks from different peers at the same time
 				char buf[chunkSize];
 				int peerSock, recvd, n_Chunks, peer_ID;
 				peer_ID = 0;
@@ -331,9 +355,9 @@ std::cout << "New file T/F request" << std::endl;
 	break;
 	}
 				
-	}
+   }
+  }
  }
-}
 }
 
 int Peer::insert(std::string filename) {
@@ -542,4 +566,8 @@ void mergeFile(char *fname, long fileSize) {
 	ofs.close();
 }
 	
+int Peer::leave() {
+//	pthread_exit(&pid);
+//	pthread_join(pid, NULL);	
 
+	}

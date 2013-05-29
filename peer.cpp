@@ -54,10 +54,8 @@ int hosttoIP(char* hostname, char* IP) {
 
 	if((addr = gethostbyname( hostname )) == NULL) {
 		std::cout << "Error resolving hostname" << std::endl;
-	}
-		
+	}		
 	addr_list = (struct in_addr **)addr->h_addr_list;
-	
 	for(int iii =0; addr_list[iii] != NULL; iii++) {
 		strcpy(IP, inet_ntoa(*addr_list[iii]));
 		std::cout << IP << std::endl;
@@ -71,6 +69,7 @@ int Peer::join() {
 	// 3. Start receiving file
 	
 //Connect to Server
+	myStatus = new Status;
 	int serverSock, sent;
 	struct hostent *serv_addr;
 	struct sockaddr_in server;
@@ -128,7 +127,7 @@ int Peer::join() {
 	if(filesize > 0) {
 		fileRecv = recv(serverSock, buf, filesize, 0);			//Receive the files List.
 		pFile = fopen("fileList", "w");							//Write the new files lis
-		fwrite(buf, 1, fileRecv, pFile);
+		fwrite(buf, 1, filesize, pFile);
 		fclose(pFile);
 	}
 	if(fileRecv == -1) {
@@ -233,8 +232,8 @@ std::cout << "No File to copy" << std::endl;
 	// Start Listening to a port for connections
 	// Connect to all client and start receiving files from them
 	close(serverSock);
-//	pthread_create(&pid, NULL, startListen, NULL);
-
+	pthread_create(&pid, NULL, startListen, NULL);
+std::cout << "Listen call started" << endl;
 }
 
 
@@ -245,7 +244,7 @@ std::cout << "Starting to listen " << std::endl;
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(10091);
+	server.sin_port = htons(10092);
 
 	//create a socket
 	if((serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -272,15 +271,15 @@ std::cout << "Starting to listen " << std::endl;
 		}	
 			if(fork() == 0) {
 			std::cout << "New Connection..... " << std::endl;
-			char req;
+			char request;
 			int rec, sent;
-			rec = recv(newsockfd, &req, 1, 0);
+			rec = recv(newsockfd, &request, sizeof(char), 0);
 			if(rec == -1) {
 				std::cout << "Receive error " << std::endl;
 			}
-std::cout << "Request type " << req << std::endl;
+std::cout << "Request type " << request << std::endl;
 			//Switch on the request type
-			switch(req) {
+			switch(request) {
 				case 'F': {
 					std::cout << "New file request.....!" << std::endl;
 					int fnameSize;
@@ -324,7 +323,7 @@ std::cout << "Request type " << req << std::endl;
 					close(newsockfd);	
 					break;
 				}
-	case 'U': {
+	default: {
 //New file is being added to the system
 std::cout << "New file T/F request" << std::endl;
 		char buf[chunkSize], fname[20];
@@ -350,7 +349,8 @@ std::cout << "New file T/F request" << std::endl;
 				rec = recv(newsockfd, buf, (fileSize % chunkSize), 0);
 				fwrite(buf, 1, rec, pFile);
 		}
-	}	
+	}
+	close(newsockfd);	
 	fclose(pFile);
 	break;
 	}
@@ -384,15 +384,18 @@ std::cout << "Insert hit " << std::endl;
 		}	
 		std::cout << "Connecting to the Peer....." << std::endl;
 
-		if( (connect(peerSock, (struct sockaddr *)&mypeer, addrSize)) == -1) {
+		if( (connect(peerSock, (struct sockaddr *)&mypeer, sizeof(mypeer))) == -1) {
 				std::cout << "Connection to Peer failed" << std::endl;
-		}
+		}	
 //'U' - Updating the files
-		char req = 'U';	
+		int reqst = 1;	
 		std::string fname;
 		fname = files[iii];
 		int n_chunks;
-		sent = send(peerSock, &req, sizeof(char), 0);  			//Send Size of Filename
+		sent = send(peerSock, &reqst, sizeof(int), 0);  			//Send Size of Filename
+		if(sent == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
 		int fnameSize = files[iii].size();
 		sent = send(peerSock, &fnameSize, sizeof(size_t), 0); //Send file size
 		sent = send(peerSock, fname.c_str(), fnameSize, 0);	//Send file name
@@ -567,7 +570,6 @@ void mergeFile(char *fname, long fileSize) {
 }
 	
 int Peer::leave() {
-//	pthread_exit(&pid);
-//	pthread_join(pid, NULL);	
-
+	pthread_join(pid, NULL);	
+	pthread_exit(&pid);
 	}

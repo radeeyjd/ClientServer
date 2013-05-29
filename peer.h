@@ -46,6 +46,7 @@ private:
 	in_addr_t IP;
 	in_port_t port; //Convert to long int
 	vector<std::string> files;
+	Status* myStatus;
 };
 
 // Peers is a dumb container to hold the peers; the number of peers is fixed,
@@ -89,6 +90,8 @@ public:
     int   minimumReplicationLevel(int fileNumber); // Use -1 to indicate if the file requested is not present in the system
     float averageReplicationLevel(int fileNumber); // Use -1 to indicate if the file requested is not present in the system
     
+	void incFiles(int n_files);
+
 private:
     // This is very cheesy and very lazy, but the focus of this assignment
     // is not on dynamic containers but on the BT p2p file distribution

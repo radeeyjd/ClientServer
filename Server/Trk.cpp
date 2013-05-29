@@ -100,15 +100,17 @@ std::cout << fileSize << std::endl;
 			}
 			case '1': {	//Add the new inserted file to the list
 				size_t fnSize;
+				long newfileSize;
 				int rec;
 				std::string nfname;
 				char newfile[100];
 				rec = recv(newsockfd, &fnSize, sizeof(size_t), 0);
 				rec = recv(newsockfd,newfile, fnSize, 0);
+				rec = recv(newsockfd, &newfileSize, sizeof(long), 0);
 				newfile[fnSize] = '\0';
 				std::ofstream oFiles;
 				oFiles.open("fileList", std::ios::out|std::ios::app);
-				oFiles << newfile << " 1" << std::endl;
+				oFiles << newfile << " "<< newfileSize << " 1" << std::endl;
 				oFiles.close();
 				break;
 			}

@@ -138,14 +138,16 @@ int Peer::join() {
 	vector<int> repStatus;
 	int numofPeers, stat, numofFiles;
 	ifstream iFiles;
-
+	long f_Size;
 //Initialize file list
 	iFiles.open("fileList", std::ifstream::in);
 	std::string bufFile;
 	if(iFiles >> bufFile) {
+		iFiles >> f_Size;
 		iFiles >> stat;
 		repStatus.push_back(stat);
 		files.push_back(bufFile);
+		filesSize.push_back(f_Size);
 		myFiles.push_back(0);
 	}
 	else {
@@ -165,7 +167,6 @@ int Peer::join() {
 	for(int jjj = 0; jjj<numofPeers; jjj++) 			//Store list of peers to connect
 	myPeers[jjj] = _peers->getPeer(jjj);
 	numofFiles = files.size();							//Store number of files in the list
-
 //Connect to peers and start receiving files
 	if(numofFiles == 0 || numofPeers == 0) {	//No Files to process listen to port for incoming connection
 	//To do
@@ -364,6 +365,7 @@ int Peer::insert(std::string filename) {
 //Connect to peers and send the new file
 std::cout << "Insert hit " << std::endl;
 	int numofPeers;
+	long newfileSize;
 	Peer myPeers[maxPeers];
 	numofPeers = _peers->getNumPeers();
 	for(int jjj = 0; jjj<numofPeers; jjj++) 			//Store list of peers to connect
@@ -396,16 +398,18 @@ std::cout << "Insert hit " << std::endl;
 		if(sent == -1) {
 			std::cout << "Send Error" << std::endl;
 		}
-		int fnameSize = files[iii].size();
+		int fnameSize = filename.size();
 		sent = send(peerSock, &fnameSize, sizeof(size_t), 0); //Send file size
-		sent = send(peerSock, fname.c_str(), fnameSize, 0);	//Send file name
+		sent = send(peerSock, filename.c_str(), fnameSize, 0);	//Send file name
 		int fileSize;
 //Start Sending the new file
 		FILE *pFile;
-		pFile = fopen(fname.c_str(), "rb");
+		pFile = fopen(filename.c_str(), "rb");
 		fseek(pFile, 0, SEEK_END);
 		fileSize = ftell(pFile);
 		rewind(pFile);
+std::cout << fileSize << std::endl;
+		newfileSize = fileSize;
 		sent = send(peerSock, &fileSize, sizeof(int), 0);
 //Split files into chunks and send it across							
 		if(fileSize <= chunkSize) {
@@ -437,6 +441,12 @@ std::cout << "New Files Sent " << std::endl;
  }
 //Contact the server update the file List
 //Connect to Server
+	FILE *pFile;
+	pFile = fopen(filename.c_str(), "rb");
+	fseek(pFile, 0, SEEK_END);
+	newfileSize = ftell(pFile);
+	rewind(pFile);
+
 	int serverSock, sent;
 	struct hostent *serv_addr;
 	struct sockaddr_in server;
@@ -466,8 +476,10 @@ std::cout << "New Files Sent " << std::endl;
 	size_t fnSize = filename.size();
 //	char newfn[20];
 //	memcpy(newfn, filename.c_str(), filename.length());
-	sent = send(serverSock, &fnSize , sizeof(size_t), 0); //Send file size
+	sent = send(serverSock, &fnSize , sizeof(size_t), 0); //Send file name size
 	sent = send(serverSock, filename.c_str(), fnSize, 0);	//Send file name
+std::cout << "FS " << newfileSize << std::endl;
+	sent = send(serverSock, &newfileSize, sizeof(long), 0); //send size of file
 //std::cout << fnSize << " " << filename.c_str() << std::endl;
 	close(serverSock);
 //	return 0;
@@ -535,7 +547,7 @@ void mergeFile(char *fname, long fileSize) {
 		char *buf = new char[chunkSize];
 		for(int c_Chunks = 0; c_Chunks < n_Chunks; c_Chunks++) {
 			chunkName.clear();
-			chunkName.clear();
+			chunkName.append("temp/");
 			chunkName.append(fname);
 			chunkName.append(".");	
 			std::ostringstream intbuf;
@@ -552,7 +564,7 @@ void mergeFile(char *fname, long fileSize) {
 //if there is some excessive data in the file
 			n_Chunks++;
 			chunkName.clear();
-			chunkName.clear();
+			chunkName.append("temp/");
 			chunkName.append(fname);
 			chunkName.append(".");	
 			std::ostringstream intbuf;

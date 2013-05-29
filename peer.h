@@ -46,6 +46,7 @@ private:
 	in_addr_t IP;
 	in_port_t port; //Convert to long int
 	vector<std::string> files;
+	vector<long> filesSize;
 	Status* myStatus;
 };
 

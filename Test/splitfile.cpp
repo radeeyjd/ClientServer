@@ -18,6 +18,7 @@ void chunkFile(char *fname, long fileSize) {
 		n_Chunks = fileSize / chunkSize;
 		for(int c_Chunks = 0; c_Chunks < n_Chunks; c_Chunks++) {	//Iterate till the entire file is being chunked minus the excess
 			chunkName.clear();
+			chunkName.append("temp/");
 			chunkName.append(fname);
 			chunkName.append(".");	
 			std::ostringstream intbuf;
@@ -34,6 +35,7 @@ void chunkFile(char *fname, long fileSize) {
 		if(fileSize % chunkSize > 0) {	//If some data is left after chunking the file
 			n_Chunks++;
 			chunkName.clear();
+			chunkName.append("temp/");
 			chunkName.append(fname);
 			chunkName.append(".");	
 			std::ostringstream intbuf;

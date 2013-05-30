@@ -27,6 +27,18 @@ void Status::incFiles(int n_files) {
 	_numFiles += n_files;
 }
 
+void Status::incfractionLocal(int fileNo, float newfrac) {
+	_local[fileNo] += newfrac;	
+}
+
+void Status::receiveCompleted(int fileNo) {
+	_local[fileNo] = 1;
+}
+
+void Status::incfraction(int fileNo, float newfrac) {
+	_system[fileNo] += newfrac;
+}
+
 float Status::fractionPresentLocally(int fileNumber) {
 //returns the fraction of the file present in the peer
 	if(_numFiles < fileNumber) {
@@ -39,10 +51,5 @@ float Status::fractionPresentLocally(int fileNumber) {
 
 float fractionPresent(int filenumber) {
 //returns the fraction of file present in the system
-	if(_numFiles < fileNumber) {
-		return -1;
-	}
-	else {
-	return _system[fileNumber];
-	}
+	return 1;
 }

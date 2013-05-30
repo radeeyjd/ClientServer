@@ -22,7 +22,7 @@ int Peers::initialize(std::string peersFile) { //Get the IP and Port numbers of 
 		_peers[_numPeers].setPort(port);	//set port
 		_numPeers++;						//Set number of peers
 //		std::cout << std::endl  <<  _peers[_numPeers].getIP() << " " <<  _peers[_numPeers].getPort() << std::endl;
-		std::cout <<"Orig Address" << _numPeers <<std::endl;
+//		std::cout <<"Orig Address" << _numPeers <<std::endl;
 	}
 	peersList.close();						//Close file
 //	for(int iii = 0; iii < _numPeers - 1; iii++)

@@ -12,11 +12,12 @@
 #include <sstream>
 #include <netdb.h>
 #include <bitset>
+#include <sys/types.h> 
 
-int myFilecount;
-vector<int> myFiles;
-vector< bitset<10> > myFileChunks;
-pthread_t pid;
+int myFilecount;					//Stores the number of files in the system
+vector<int> myFiles;				//Stores the list of files
+vector< bitset<100> > myFileChunks;	//Each file is chunked into maximum of 100 chunks
+pthread_t pid,sid;					//Thread for the server and peerTracker
 
 Peer::Peer() {
 //		_peers = new Peers;
@@ -25,7 +26,7 @@ Peer::Peer() {
 #define addrSize sizeof(struct sockaddr_in)
 
 void * startListen(void *);
-
+void * trackerListen(void *); 
 
 void Peer::setIP(std::string s_IP) { //Set the IP of Peer	
 	IP = inet_addr(s_IP.c_str());
@@ -82,58 +83,56 @@ int Peer::join() {
 //Contact the Tracker to get files and peers List
 	if( (serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
 		std::cout << "Socket call failed" << std::endl;
-		return -1;	
 	}	
 	std::cout << "Connecting to the server....." << std::endl;
 
 	if( (connect(serverSock, (struct sockaddr *)&server, addrSize)) == -1) {
 		std::cout << "Connection failed" << std::endl;
-		return -1;
 	}
+	else {
 //'0' -- Joining the system
-	char req = '0';
-	sent = send(serverSock, &req, sizeof(char), 0);
-	if(sent == -1) {
-		std::cout << "Send Error" << std::endl;
-	}
+		char req = '0';
+		sent = send(serverSock, &req, sizeof(char), 0);
+		if(sent == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
 
 //Start receiving file
-	FILE *pFile;
-	char buf[255];
-	int fileRecv, filesize;
-	fileRecv = recv(serverSock, &filesize, sizeof(int), 0); //Receive the size of the file
-	if(fileRecv == -1) {
-		std::cout << "Send Error" << std::endl;
-	}
+		FILE *pFile;
+		char buf[255];
+		int fileRecv, filesize;
+		fileRecv = recv(serverSock, &filesize, sizeof(int), 0); //Receive the size of the file
+		if(fileRecv == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
 
-	fileRecv = recv(serverSock, buf, filesize, 0);		 	//Receive peerslist file
-	if(fileRecv == -1) {
-		std::cout << "Send Error" << std::endl;
-	}
+		fileRecv = recv(serverSock, buf, filesize, 0);		 	//Receive peerslist file
+		if(fileRecv == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
 
-	pFile = fopen("peersList", "w");
-	if(pFile == NULL) {
-		std::cout << "Error Reading file" << std::endl;
-		return -1;
-	}
-	fwrite(buf, 1, fileRecv, pFile);						//Write the new peerlist
-	fclose(pFile);
+		pFile = fopen("peersList", "w");
+		if(pFile == NULL) {
+			std::cout << "Error Reading file" << std::endl;
+		}
+		fwrite(buf, 1, fileRecv, pFile);						//Write the new peerlist
+		fclose(pFile);
 
 //Start receiving file List
-	fileRecv = recv(serverSock, &filesize, sizeof(int), 0);	//Receive size of file
-	if(fileRecv == -1) {
-		std::cout << "Send Error" << std::endl;
+		fileRecv = recv(serverSock, &filesize, sizeof(int), 0);	//Receive size of file
+		if(fileRecv == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
+		if(filesize > 0) {
+			fileRecv = recv(serverSock, buf, filesize, 0);			//Receive the files List.
+			pFile = fopen("fileList", "w");							//Write the new files lis
+			fwrite(buf, 1, filesize, pFile);
+			fclose(pFile);
+		}
+		if(fileRecv == -1) {
+			std::cout << "Send Error" << std::endl;
+		}
 	}
-	if(filesize > 0) {
-		fileRecv = recv(serverSock, buf, filesize, 0);			//Receive the files List.
-		pFile = fopen("fileList", "w");							//Write the new files lis
-		fwrite(buf, 1, filesize, pFile);
-		fclose(pFile);
-	}
-	if(fileRecv == -1) {
-		std::cout << "Send Error" << std::endl;
-	}
-	
 //Connect with peers to receive file from them
 	vector<int> repStatus;
 	int numofPeers, stat, numofFiles;
@@ -151,6 +150,7 @@ int Peer::join() {
 		myFiles.push_back(0);
 	}
 	else {
+//Start a tracket to listen to the incoming connections
 		std::cout << "No files in System" << std::endl;			//No files start listening to the port for incoming connection
 	}
 	while(iFiles >> bufFile) {
@@ -170,12 +170,12 @@ int Peer::join() {
 //Connect to peers and start receiving files
 	if(numofFiles == 0 || numofPeers == 0) {	//No Files to process listen to port for incoming connection
 	//To do
-std::cout << "No File to copy" << std::endl;
+std::cout << "No File to copy Startrin the peerTracker" << std::endl;
+	pthread_create(&sid, NULL, trackerListen, NULL); 
 	}
-	else {		
+	else {
 		for(int iii = 0; iii < numofFiles; iii++) { 
-		//Create threads
-		//Split the file into multiple chunks and receive the chunks from different peers at the same time
+//Split the file into multiple chunks and receive the chunks from different peers at the same time
 				char buf[chunkSize];
 				int peerSock, recvd, n_Chunks, peer_ID;
 				peer_ID = 0;
@@ -484,6 +484,13 @@ std::cout << "FS " << newfileSize << std::endl;
 	close(serverSock);
 //	return 0;
 }
+	
+int Peer::leave() {
+	pthread_join(pid, NULL);
+	pthread_join(sid, NULL);
+	pthread_exit(&sid);	
+	pthread_exit(&pid);
+	}
 
 Peer::~Peer() {
 //		pthread_join(pid, NULL);	
@@ -580,8 +587,111 @@ void mergeFile(char *fname, long fileSize) {
 	}
 	ofs.close();
 }
+
+void * trackerListen(void *arg) {
+	int serverSock, sent, newsockfd;
+	struct hostent *serv_addr;
+	struct sockaddr_in server;
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_port = htons(10089);
+
+	//create a socket
+	if((serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1) {
+		std::cout << "Socket call failed" << std::endl;
+	}	
 	
-int Peer::leave() {
-	pthread_join(pid, NULL);	
-	pthread_exit(&pid);
+	//bind the socket
+	if((bind(serverSock, (struct sockaddr *)&server, sizeof(server))) == -1) {
+		std::cout << "Bind Call failed" << std::endl;
 	}
+
+	//Start Listening to connections
+	if(listen(serverSock, 5) == -1) {
+		std::cout << "Listen call failed" << std::endl;
+	}
+	while(1) {
+			
+	//Accept connection
+		if((newsockfd = accept(serverSock, NULL, NULL)) == -1) {
+			std::cout << "Accept call failed " << std::endl;
+		}	
+			if(fork() == 0) {
+			char req;
+			int rec, sent;
+			rec = recv(newsockfd, &req, 1, 0);
+			//Switch on the request type
+			switch(req) {
+				case '0': {
+					FILE *pFile;
+					char buf[255];
+					int fileSize;				//Get the file size
+					pFile = fopen("peersList", "rb");
+					fseek(pFile, 0, SEEK_END);
+					fileSize = ftell(pFile);
+					rewind(pFile);
+					fread(buf,1, fileSize,pFile);
+					fclose(pFile);
+					sent = send(newsockfd, &fileSize, sizeof(int), 0);
+					sent = send(newsockfd, buf, fileSize, 0);
+					if(sent == -1) {
+						std::cout << "Send Error " << std::endl;
+					}
+
+					pFile = fopen("fileList", "rb");
+					fseek(pFile, 0, SEEK_END);
+					fileSize = ftell(pFile);
+					rewind(pFile);
+					fread(buf,1, fileSize,pFile);
+					fclose(pFile);
+std::cout << fileSize << std::endl;
+					sent = send(newsockfd, &fileSize, sizeof(int), 0);
+					if(sent == -1) {
+						std::cout << "Send Error " << std::endl;
+					}
+					if(fileSize != 0)
+					sent = send(newsockfd, buf, fileSize, 0);
+					if(sent == -1) {
+						std::cout << "Send Error " << std::endl;
+					}
+
+					//Get the Peer IP and append in the file
+					char client_IP[20];
+					struct sockaddr_in client;
+					socklen_t len = sizeof(client);		
+					if(getpeername(newsockfd, (struct sockaddr*)&client, &len) == -1) {
+						std::cout << "Cannot get IP of Client" << std::endl;
+					}
+					inet_ntop(AF_INET, &client.sin_addr, client_IP, sizeof(client_IP));	
+					std::cout << "New peer " << client_IP <<" Joined the system.....!" << std::endl;
+					std::ofstream ofs;	//Open output stream
+					ofs.open("peersList", std::ofstream::out|std::ofstream::app);
+					ofs << client_IP << " 10091" << std::endl; //Make a new entry
+					ofs.close();
+					break;	
+			}
+			case '1': {	//Add the new inserted file to the list
+				size_t fnSize;
+				long newfileSize;
+				int rec;
+				std::string nfname;
+				char newfile[100];
+				rec = recv(newsockfd, &fnSize, sizeof(size_t), 0);
+				rec = recv(newsockfd,newfile, fnSize, 0);
+				rec = recv(newsockfd, &newfileSize, sizeof(long), 0);
+				newfile[fnSize] = '\0';
+				std::ofstream oFiles;
+				oFiles.open("fileList", std::ios::out|std::ios::app);
+				oFiles << newfile << " "<< newfileSize << " 1" << std::endl;
+				oFiles.close();
+				break;
+				}
+				
+			}	
+			close(newsockfd);
+
+		}
+		
+	}
+}
+

@@ -92,7 +92,9 @@ public:
     float averageReplicationLevel(int fileNumber); // Use -1 to indicate if the file requested is not present in the system
     
 	void incFiles(int n_files);
-
+	void incfractionLocal(int fileNo, float newfrac);
+	void incfraction(int fileNo, float newfrac);
+	void receiveCompleted(int fileNo);
 private:
     // This is very cheesy and very lazy, but the focus of this assignment
     // is not on dynamic containers but on the BT p2p file distribution

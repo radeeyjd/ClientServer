@@ -245,7 +245,7 @@ std::cout << "Starting to listen " << std::endl;
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(10092);
+	server.sin_port = htons(10090);
 
 	//create a socket
 	if((serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -329,11 +329,13 @@ std::cout << "Request type " << request << std::endl;
 std::cout << "New file T/F request" << std::endl;
 		char buf[chunkSize], fname[20];
 		std::cout << "New file received" << std::endl;
-		int n_Chunks, fnameSize, rec, sent, fileSize;
-		rec = recv(newsockfd, &fnameSize, sizeof(size_t), 0);
+		int n_Chunks, fnameSize, rec, sent;
+		long fileSize;
+		rec = recv(newsockfd, &fnameSize, sizeof(int), 0);
 		rec = recv(newsockfd, fname, fnameSize, 0);
 		FILE *pFile;
-		rec = recv(newsockfd, &fileSize, sizeof(int), 0);
+		std::cout << "New file " << fname << " received" << std::endl;
+		rec = recv(newsockfd, &fileSize, sizeof(long), 0);
 		pFile = fopen(fname, "wa");
 //Open and start writing the files
 		if(fileSize <= chunkSize) {	//For small file get in a single attempt
@@ -365,81 +367,66 @@ int Peer::insert(std::string filename) {
 //Connect to peers and send the new file
 //Connect to server and update the peer list
 std::cout << "Insert hit " << std::endl;
-	int numofPeers;
+	int i_numofPeers;
 	long newfileSize;
-	Peer myPeers[maxPeers];
-	numofPeers = _peers->getNumPeers();
-	for(int jjj = 0; jjj<numofPeers; jjj++) 			//Store list of peers to connect
-		myPeers[jjj] = _peers->getPeer(jjj);
-
-	for(int iii = 0; iii < numofPeers; iii++) {			//Connect to each peer and send the new file
-	if(fork() == 0) {
-		char buf[chunkSize];
-		int peerSock, sent, recvd, n_Chunks;
-		struct hostent *peer_addr;
-		struct sockaddr_in mypeer;
-		mypeer.sin_family = AF_INET;
-		mypeer.sin_addr.s_addr = myPeers[iii].getIP();		//Connect to iiith peer
-		mypeer.sin_port = myPeers[iii].getPort();			//iith port
-
-		if( (peerSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
-				std::cout << "Peer Socket call failed" << std::endl;		
+	Peer i_myPeers[maxPeers];
+	i_numofPeers = _peers->getNumPeers();
+	for(int jjj = 0; jjj<i_numofPeers; jjj++) 			//Store list of peers to connect
+		i_myPeers[jjj] = _peers->getPeer(jjj);
+std::cout << "Connecting to " << i_numofPeers << " peers" << std::endl;
+	for(int iii = 0; iii < i_numofPeers; iii++) {		
+//Connect to each peer and send the new file
+		int inSock, sent;
+		struct hostent *i_peer_addr;
+		struct sockaddr_in i_peer;
+		i_peer.sin_family = AF_INET;
+		i_peer.sin_addr.s_addr = i_myPeers[iii].getIP();		//Connect to iiith peer
+		i_peer.sin_port = i_myPeers[iii].getPort();			//iith port
+	
+		if( (inSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
+				std::cout << "Peer Socket call failed" << std::endl;
 		}	
-		std::cout << "Connecting to the Peer....." << std::endl;
-
-		if( (connect(peerSock, (struct sockaddr *)&mypeer, sizeof(mypeer))) == -1) {
-				std::cout << "Connection to Peer failed" << std::endl;
-		}	
-//'U' - Updating the files
-		int reqst = 1;	
-		std::string fname;
-		fname = files[iii];
-		int n_chunks;
-		sent = send(peerSock, &reqst, sizeof(int), 0);  			//Send Size of Filename
-		if(sent == -1) {
-			std::cout << "Send Error" << std::endl;
+		if( (connect(inSock, (struct sockaddr *)&i_peer, addrSize)) == -1) {
+				std::cout << "Connection to Peer failed" << std::endl;				
 		}
-		int fnameSize = filename.size();
-		sent = send(peerSock, &fnameSize, sizeof(size_t), 0); //Send file size
-		sent = send(peerSock, filename.c_str(), fnameSize, 0);	//Send file name
-		int fileSize;
-//Start Sending the new file
-		FILE *pFile;
-		pFile = fopen(filename.c_str(), "rb");
-		fseek(pFile, 0, SEEK_END);
-		fileSize = ftell(pFile);
-		rewind(pFile);
-std::cout << fileSize << std::endl;
-		newfileSize = fileSize;
-		sent = send(peerSock, &fileSize, sizeof(int), 0);
-//Split files into chunks and send it across							
-		if(fileSize <= chunkSize) {
-			fread(buf,1, fileSize,pFile);
-			fclose(pFile);
-			sent = send(peerSock, buf, fileSize, 0);	
+	
+		char req = 'U';
+		sent = send(inSock, &req, sizeof(char), 0);  
+
+		int i_fnameSize = filename.size();
+		sent = send(inSock, &i_fnameSize, sizeof(int), 0); //Send file size
+		sent = send(inSock, filename.c_str(), i_fnameSize, 0);	//Send file name
+
+		long i_newfileSize;
+
+		FILE *inpFile;
+		inpFile = fopen(filename.c_str(), "rb");
+		fseek(inpFile, 0, SEEK_END);
+		i_newfileSize = ftell(inpFile);
+		rewind(inpFile);
+
+		sent = send(inSock, &i_newfileSize, sizeof(long), 0);
+		char buf[chunkSize];
+		int i_nChunks;
+		if(i_newfileSize < chunkSize) {
+			fread(buf, 1, chunkSize, inpFile);
+			sent = send(inSock, buf, i_newfileSize,0);
 		}
 		else {
-			n_chunks = fileSize / chunkSize;		
-			for(int c_Chunk = 0; c_Chunk < n_chunks; c_Chunk++) {
-				fread(buf, 1, chunkSize, pFile);
-				sent = send(peerSock, buf, chunkSize, 0);	
-				if(sent == -1) {
-					std::cout << "Send Error " << std::endl;
-				}
+			i_nChunks = i_newfileSize / chunkSize;
+			for(int i_cChunks = 0; i_cChunks < i_nChunks; i_cChunks++) {
+				fread(buf,1, chunkSize, inpFile);
+				sent = send(inSock, buf, chunkSize, 0);
 			}
-				if((fileSize % chunkSize) != 0) {
-					fread(buf, 1, (fileSize %chunkSize), pFile);
-					sent = send(peerSock, buf, (fileSize % chunkSize), 0);
-					if(sent == -1) {
-					std::cout << "Send Error " << std::endl;
-				}
+			if((i_newfileSize % chunkSize) > 0) {
+				fread(buf, 1, (i_newfileSize % chunkSize), inpFile);
+				sent = send(inSock, buf, (i_newfileSize % chunkSize), 0);
 			}
-std::cout << "New Files Sent " << std::endl;
+			}
 		}
-		fclose(pFile);
-	}
 
- }
+
+ 	
 //Contact the server update the file List
 //Connect to Server
 	FILE *pFile;

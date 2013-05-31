@@ -65,7 +65,7 @@ int hosttoIP(char* hostname, char* IP) {
 }
 	
 int Peer::join() {
-	// 1. Connect to server get Peers List
+	// 1. Connect to peer Tracker get Peers List
 	// 2. Get the files list
 	// 3. Start receiving file
 	
@@ -170,7 +170,7 @@ int Peer::join() {
 //Connect to peers and start receiving files
 	if(numofFiles == 0 || numofPeers == 0) {	//No Files to process listen to port for incoming connection
 	//To do
-std::cout << "No File to copy Startrin the peerTracker" << std::endl;
+std::cout << "No File to copy Starting the peerTracker" << std::endl;
 	pthread_create(&sid, NULL, trackerListen, NULL); 
 	}
 	else {
@@ -363,6 +363,7 @@ std::cout << "New file T/F request" << std::endl;
 
 int Peer::insert(std::string filename) {
 //Connect to peers and send the new file
+//Connect to server and update the peer list
 std::cout << "Insert hit " << std::endl;
 	int numofPeers;
 	long newfileSize;
@@ -490,7 +491,40 @@ int Peer::leave() {
 	pthread_join(sid, NULL);
 	pthread_exit(&sid);	
 	pthread_exit(&pid);
+//Connect to all peer and let them know that the peer is exiting
+	int numofPeers;
+	long newfileSize;
+	Peer myPeers[maxPeers];
+	numofPeers = _peers->getNumPeers();
+	for(int jjj = 0; jjj<numofPeers; jjj++) 			//Store list of peers to connect
+		myPeers[jjj] = _peers->getPeer(jjj);
+	for(int iii = 0; iii < numofPeers; iii++) {			//Connect to each peer and send the exit code 
+		if(fork() == 0) {
+			char buf[chunkSize];
+			int peerSock, sent, recvd, n_Chunks;
+			struct hostent *peer_addr;
+			struct sockaddr_in mypeer;
+			mypeer.sin_family = AF_INET;
+			mypeer.sin_addr.s_addr = myPeers[iii].getIP();		//Connect to iiith peer
+			mypeer.sin_port = myPeers[iii].getPort();			//iith port
+
+			if( (peerSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
+				std::cout << "Peer Socket call failed" << std::endl;		
+			}	
+			std::cout << "Connecting to the Peer....." << std::endl;
+
+			if( (connect(peerSock, (struct sockaddr *)&mypeer, sizeof(mypeer))) == -1) {
+					std::cout << "Connection to Peer failed" << std::endl;
+			}	
+//'U' - Updating the files
+			int reqst = -1;	
+			sent = send(peerSock, &reqst, sizeof(int), 0);  			//Send Size of Filename
+			if(sent == -1) {
+			std::cout << "Send Error in Leave" << std::endl;
+			}
+		}
 	}
+}
 
 Peer::~Peer() {
 //		pthread_join(pid, NULL);	
@@ -508,6 +542,7 @@ void chunkFile(char *fname, long fileSize) {
 		n_Chunks = fileSize / chunkSize;
 		for(int c_Chunks = 0; c_Chunks < n_Chunks; c_Chunks++) {	//Iterate till the entire file is being chunked minus the excess
 			chunkName.clear();
+			chunkName.append("temp/");
 			chunkName.append(fname);
 			chunkName.append(".");	
 			std::ostringstream intbuf;
@@ -605,7 +640,7 @@ void * trackerListen(void *arg) {
 	if((bind(serverSock, (struct sockaddr *)&server, sizeof(server))) == -1) {
 		std::cout << "Bind Call failed" << std::endl;
 	}
-
+	else {
 	//Start Listening to connections
 	if(listen(serverSock, 5) == -1) {
 		std::cout << "Listen call failed" << std::endl;
@@ -691,7 +726,7 @@ std::cout << fileSize << std::endl;
 			close(newsockfd);
 
 		}
-		
+	  }
 	}
 }
 

@@ -16,7 +16,7 @@
 
 int myFilecount;					//Stores the number of files in the system
 vector<int> myFiles;				//Stores the list of files
-vector< bitset<100> > myFileChunks;	//Each file is chunked into maximum of 100 chunks
+vector< bitset<1000> > myFileChunks;	//Each file is chunked into maximum of 100 chunks
 pthread_t pid,sid;					//Thread for the server and peerTracker
 pthread_t peer_threads[maxPeers];
 

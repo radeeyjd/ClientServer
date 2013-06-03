@@ -18,6 +18,7 @@ int myFilecount;					//Stores the number of files in the system
 vector<int> myFiles;				//Stores the list of files
 vector< bitset<100> > myFileChunks;	//Each file is chunked into maximum of 100 chunks
 pthread_t pid,sid;					//Thread for the server and peerTracker
+pthread_t peer_threads[maxPeers];
 
 Peer::Peer() {
 //		_peers = new Peers;
@@ -27,7 +28,8 @@ Peer::Peer() {
 
 void * startListen(void *);
 void * trackerListen(void *); 
-
+void * receiveFiles(void * arg);
+ 
 void Peer::setIP(std::string s_IP) { //Set the IP of Peer	
 	IP = inet_addr(s_IP.c_str());
 //std::cout << "New IP" << IP;
@@ -50,14 +52,14 @@ in_port_t Peer::getPort() {			//Get the port of a peer
 
 int hosttoIP(char* hostname, char* IP) {
 //Function to resolve the hostname -> IP
-	struct hostent *addr;
-	struct in_addr **addr_list;
+	struct hostent *addr;		//to resolve the address
+	struct in_addr **addr_list;	//to store the address
 
 	if((addr = gethostbyname( hostname )) == NULL) {
 		std::cout << "Error resolving hostname" << std::endl;
 	}		
 	addr_list = (struct in_addr **)addr->h_addr_list;
-	for(int iii =0; addr_list[iii] != NULL; iii++) {
+	for(int iii =0; addr_list[iii] != NULL; iii++) {	//Copy the address to the string
 		strcpy(IP, inet_ntoa(*addr_list[iii]));
 //		std::cout << IP << std::endl;
 	}
@@ -70,15 +72,15 @@ int Peer::join() {
 	// 3. Start receiving file
 	
 //Connect to Server
-	myStatus = new Status;
-	int serverSock, sent;
-	struct hostent *serv_addr;
+	myStatus = new Status;		//Create a new object Status to store the status of files in the systesm
+	int serverSock, sent;		//Create a new server sock to connect to tracker
+	struct hostent *serv_addr;	
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
 	char IP[20];
-	hosttoIP("localhost", IP);
+	hosttoIP("localhost", IP);				//Resolve the host to IP strinf
 	server.sin_addr.s_addr = inet_addr(IP);	//IP address of tracker	
-	server.sin_port = htons(10089);						//Trackers Port
+	server.sin_port = htons(10089);			//Trackers Port
 	_peers = new Peers;
 //Contact the Tracker to get files and peers List
 	if( (serverSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
@@ -176,6 +178,7 @@ int Peer::join() {
 	else {
 		for(int iii = 0; iii < numofFiles; iii++) { 
 //Split the file into multiple chunks and receive the chunks from different peers at the same time
+				pthread_create(&peer_threads[iii], NULL,receiveFiles, NULL);
 				char buf[chunkSize];
 				int peerSock, recvd, n_Chunks, peer_ID;
 				peer_ID = 0;
@@ -515,6 +518,63 @@ int Peer::leave() {
 
 Peer::~Peer() {
 //		pthread_join(pid, NULL);	
+}
+
+void * receiveFiles(void * arg) {
+	int i_numofPeers;
+	long newfileSize;
+	Peer i_myPeers[maxPeers];
+	sleep(5);
+	i_numofPeers = 0;
+	for(int jjj = 0; jjj<i_numofPeers; jjj++) 			//Store list of peers to connect
+//std::cout << "Connecting to " << i_numofPeers << " peers" << std::endl;
+	for(int iii = 0; iii < i_numofPeers; iii++) {		
+//Connect to each peer and send the new file
+		int inSock, sent;
+		struct hostent *i_peer_addr;
+		struct sockaddr_in i_peer;
+		i_peer.sin_family = AF_INET;
+		if( (inSock = socket( AF_INET, SOCK_STREAM, 0)) == -1 ) {
+				std::cout << "Peer Socket call failed" << std::endl;
+		}	
+		if( (connect(inSock, (struct sockaddr *)&i_peer, addrSize)) == -1) {
+				std::cout << "Connection to Peer failed" << std::endl;				
+		}
+	
+		char req = 'U';
+		sent = send(inSock, &req, sizeof(char), 0);  
+		std::string filename;
+		int i_fnameSize = filename.size();
+		sent = send(inSock, &i_fnameSize, sizeof(int), 0); //Send file size
+		sent = send(inSock, filename.c_str(), i_fnameSize, 0);	//Send file name
+
+		long i_newfileSize;
+
+		FILE *inpFile;
+		inpFile = fopen(filename.c_str(), "rb");
+		fseek(inpFile, 0, SEEK_END);
+		i_newfileSize = ftell(inpFile);
+		rewind(inpFile);
+
+		sent = send(inSock, &i_newfileSize, sizeof(long), 0);
+		char buf[chunkSize];
+		int i_nChunks;
+		if(i_newfileSize < chunkSize) {
+			fread(buf, 1, chunkSize, inpFile);
+			sent = send(inSock, buf, i_newfileSize,0);
+		}
+		else {
+			i_nChunks = i_newfileSize / chunkSize;
+			for(int i_cChunks = 0; i_cChunks < i_nChunks; i_cChunks++) {
+				fread(buf,1, chunkSize, inpFile);
+				sent = send(inSock, buf, chunkSize, 0);
+			}
+			if((i_newfileSize % chunkSize) > 0) {
+				fread(buf, 1, (i_newfileSize % chunkSize), inpFile);
+				sent = send(inSock, buf, (i_newfileSize % chunkSize), 0);
+			}
+		}
+	}
 }
 
 void chunkFile(char *fname, long fileSize) {
